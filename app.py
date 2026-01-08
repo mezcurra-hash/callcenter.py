@@ -171,7 +171,7 @@ try:
         with col_graf2:
             st.subheader("Cantidad de turnos (Ts y AS")
             datos_canales = {
-                'Plataforma': ['Ts (Tel)', 'AS (Tel)', 'Total (Tel)'],
+                'Canal': ['Ts (Tel)', 'AS (Tel)', 'Total (Tel)'],
                 'Turnos': [datos_mes['TURNOS_CONS_TEL'], datos_mes['TURNOS_PRACT_TEL'], datos_mes['TURNOS_TOTAL_TEL']]
             }
             fig_bar = px.bar(datos_canales, x='Canal', y='Turnos', color='Canal')
