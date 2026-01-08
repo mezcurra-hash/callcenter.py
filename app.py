@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Tablero Call Center", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="Llamados/Turnos - Call Center", layout="wide", page_icon="🎧")
 
 st.markdown("""
 <style>
@@ -28,7 +28,7 @@ with col1:
     # st.image("logo.png", width=90)
     st.write("🎧") 
 with col2:
-    st.title("Centro de Atención Telefónica - CEMIC")
+    st.title("Call Center - CEMIC")
 st.markdown("---")
 
 # --- 1. CARGA Y LIMPIEZA DE DATOS ---
@@ -122,7 +122,7 @@ try:
         # 1. KPIs Grandes
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("📞 Llamadas Recibidas", f"{rec:,.0f}")
-        c2.metric("✅ Atendidas", f"{aten:,.0f}", delta=f"{(aten/rec*100):.1f}% Efic.")
+        c2.metric("✅ Atendidas", f"{aten:,.0f}", delta=f"{(aten/rec*100):.1f}%")
         c3.metric("❌ Perdidas (Abandono)", f"{perd:,.0f}", delta=f"-{(perd/rec*100):.1f}%", delta_color="inverse")
         
         # Semáforo de Nivel de Servicio
@@ -135,7 +135,7 @@ try:
         col_graf1, col_graf2 = st.columns([1, 1])
         
         with col_graf1:
-            st.subheader("Eficiencia de Atención")
+            st.subheader("Nivel de Atención")
             # Gráfico de Torta (Donut)
             fig_pie = px.pie(
                 names=["Atendidas", "Perdidas"], 
@@ -150,7 +150,7 @@ try:
             # Gráfico de Barras comparando canales
             # Asumimos que estas columnas existen en tu CSV
             datos_canales = {
-                'Canal': ['Teléfono (Consultorios)', 'Teléfono (Prácticas)', 'Redes/Digital'],
+                'Canal': ['Consultorios', 'Prácticas', 'Total'],
                 'Turnos': [datos_mes['TURNOS_CONS_TEL'], datos_mes['TURNOS_PRACT_TEL'], datos_mes['TURNOS_TOTAL_TEL']]
             }
             fig_bar = px.bar(datos_canales, x='Canal', y='Turnos', color='Canal')
