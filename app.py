@@ -21,11 +21,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Cabecera
-col1, col2 = st.columns([1, 6])
+# --- CABECERA CON LOGO ---
+col1, col2 = st.columns([1, 5]) 
 with col1:
-    # st.image("logo.png", width=90)
-    st.write("🎧") 
+    # Logo oficial
+    st.image("https://www.cemic.edu.ar/assets/img/logo/logo-cemic.png", width=100) 
 with col2:
     st.title("Call Center - CEMIC")
 st.markdown("---")
@@ -37,7 +37,6 @@ def cargar_datos():
     
     df = pd.read_csv(url_csv, dtype=str)
     
-    # LIMPIEZA DE NÚMEROS
     cols_numericas = [
         'RECIBIDAS_FIN', 'ATENDIDAS_FIN', 'PERDIDAS_FIN', 
         'RECIBIDAS_PREPAGO', 'ATENDIDAS_PREPAGO', 'PERDIDAS_PREPAGO',
@@ -114,33 +113,18 @@ try:
         sla_mes = (aten / rec * 100) if rec > 0 else 0
         pct_perdidas = (perd / rec * 100) if rec > 0 else 0
 
-        # --- LÓGICA DE COLORES DINÁMICA ---
-        
-        # 1. Lógica para Perdidas:
-        # Si perdidas > 10% -> ES MALO (Rojo). Usamos "normal" porque el string es negativo (-15%), y en "normal" negativo es rojo.
-        # Si perdidas <= 10% -> ES BUENO (Verde). Usamos "inverse" porque en "inverse" negativo es verde.
+        # LÓGICA DE COLORES DINÁMICA
+        # Perdidas > 10% es malo (Rojo/"normal"), < 10% es bueno (Verde/"inverse")
         color_delta_perdidas = "normal" if pct_perdidas > 10 else "inverse"
-
-        # 2. Lógica para Nivel de Servicio (SLA):
-        # Objetivo: 90%. Si es > 90 es "normal" (verde), si es menor es "inverse" (rojo/gris).
-        # Nota: delta_color="off" pone gris, "inverse" pone rojo si el delta fuera positivo.
-        # Aquí usaremos un truco visual simple.
+        
+        # SLA > 90% es bueno (Verde/"normal"), < 90% es malo (Rojo/"inverse")
         color_delta_sla = "normal" if sla_mes >= 90 else "inverse"
 
-        # KPIs
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("📞 Llamadas Recibidas", f"{rec:,.0f}")
         c2.metric("✅ Atendidas", f"{aten:,.0f}", delta=f"{(aten/rec*100):.1f}%")
-        
-        # Métrica Perdidas con Lógica de Alerta
-        c3.metric("❌ Perdidas (Abandono)", f"{perd:,.0f}", 
-                  delta=f"-{pct_perdidas:.1f}%", 
-                  delta_color=color_delta_perdidas) # <--- Aquí aplicamos el color dinámico
-        
-        # Métrica SLA con Meta 90%
-        c4.metric("📊 Nivel de Servicio", f"{sla_mes:.1f}%", 
-                  delta="Meta: >90%", 
-                  delta_color="normal" if sla_mes >= 90 else "inverse")
+        c3.metric("❌ Perdidas (Abandono)", f"{perd:,.0f}", delta=f"-{pct_perdidas:.1f}%", delta_color=color_delta_perdidas)
+        c4.metric("📊 Nivel de Servicio", f"{sla_mes:.1f}%", delta="Meta: >90%", delta_color=color_delta_sla)
 
         st.markdown("---")
 
@@ -149,29 +133,27 @@ try:
         with col_graf1:
             st.subheader("Nivel de Atención")
             
-            # DataFrame auxiliar para controlar colores estrictos
             df_pie = pd.DataFrame({
                 'Estado': ['Atendidas', 'Perdidas'],
                 'Cantidad': [aten, perd]
             })
-            
-            # Mapeo estricto de colores
-            colores_fijos = {'Atendidas': '#4CAF50', 'Perdidas': '#FF5252'} # Verde y Rojo
+            # Colores Fijos
+            colores_fijos = {'Atendidas': '#4CAF50', 'Perdidas': '#FF5252'}
             
             fig_pie = px.pie(
                 df_pie, 
                 values='Cantidad', 
                 names='Estado',
-                color='Estado', # <--- Importante: Usar la columna Estado para mapear color
-                color_discrete_map=colores_fijos, # <--- Forzamos el mapa de colores
+                color='Estado', 
+                color_discrete_map=colores_fijos,
                 hole=0.4
             )
             st.plotly_chart(fig_pie, use_container_width=True)
             
         with col_graf2:
-            st.subheader("Cantidad de turnos (Ts y AS")
+            st.subheader("Cantidad de turnos (Ts y AS)")
             datos_canales = {
-                'Canal': ['Ts (Tel)', 'AS (Tel)', 'Total (Tel)'],
+                'Canal': ['Consultorios (Tel)', 'Prácticas (Tel)', 'Total (Tel)'],
                 'Turnos': [datos_mes['TURNOS_CONS_TEL'], datos_mes['TURNOS_PRACT_TEL'], datos_mes['TURNOS_TOTAL_TEL']]
             }
             fig_bar = px.bar(datos_canales, x='Canal', y='Turnos', color='Canal')
