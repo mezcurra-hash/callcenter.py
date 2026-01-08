@@ -6,13 +6,18 @@ import plotly.graph_objects as go
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Tablero Call Center", layout="wide", page_icon="🎧")
 
-# Estilos CSS Limpios
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     [data-testid="stMetricDelta"] svg { display: inline; }
-    .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
+    /* Estilo Tarjeta Oscura */
+    div[data-testid="stMetric"] {
+        background-color: #262730;
+        border: 1px solid #464b5f;
+        padding: 10px;
+        border-radius: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
