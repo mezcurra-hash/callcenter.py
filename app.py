@@ -104,42 +104,70 @@ try:
     df_perdidas['TURNOS_PERDIDOS'] = df_perdidas['CONSULTORIOS_REALES'] * df_perdidas['RENDIMIENTO_USADO']
     df_perdidas['DINERO_PERDIDO'] = df_perdidas['TURNOS_PERDIDOS'] * df_perdidas['VALOR_TURNO']
 
-    # ==============================================================================
-    # 4. DASHBOARD
+   # ==============================================================================
+    # 4. DASHBOARD MEJORADO
     # ==============================================================================
     
+    # --- CÁLCULOS MACRO ---
     total_facturado = df_ingresos['FACTURACION_REAL'].sum()
     total_perdido = df_perdidas['DINERO_PERDIDO'].sum()
     total_potencial = total_facturado + total_perdido
     
-    turnos_reales = df_ingresos['TURNOS_MENSUAL'].sum()
-    turnos_perdidos = df_perdidas['TURNOS_PERDIDOS'].sum()
+    # Porcentaje de impacto (La Fuga)
+    pct_fuga = (total_perdido / total_potencial * 100) if total_potencial > 0 else 0
+    
+    # Proyección Anual (Simple: Mes Actual x 12)
+    proyeccion_anual = total_perdido * 12
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("💰 Facturación Base", f"$ {total_facturado:,.0f}", f"{turnos_reales:,.0f} turnos")
-    c2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{turnos_perdidos:,.0f} turnos", delta_color="inverse")
-    c3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Facturación teórica ideal")
+    # --- VISUALIZACIÓN ---
+
+    # 1. KPIs PRINCIPALES
+    st.markdown("### 🚦 Semáforo Financiero")
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    
+    kpi1.metric("💰 Facturación Base", f"$ {total_facturado:,.0f}", help="Lo que realmente se ofertó")
+    
+    # Aquí mostramos la pérdida y el porcentaje rojo
+    kpi2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{pct_fuga:.1f}% de Fuga", delta_color="inverse")
+    
+    kpi3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Escenario ideal sin ausencias")
+    
+    # El dato que asusta (Anualizado)
+    kpi4.metric("📅 Proyección Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Si la tendencia sigue", delta_color="inverse")
 
     st.markdown("---")
 
-    st.subheader("📊 Impacto Económico por Servicio")
+    # 2. SIMULADOR DE RECUPERO (NUEVO) 🎯
+    st.info("🎯 **Estrategia de Recupero:** No podemos evitar todas las ausencias, pero... ¿cuánta plata ganaríamos si gestionamos mejor?")
     
-    # Agrupar y ordenar
+    # Slider de meta
+    meta_recupero = st.slider("Si logramos recuperar el X% de los consultorios caídos:", 0, 100, 50, key="slider_meta")
+    
+    # Cálculo de dinero recuperable
+    dinero_recuperable = total_perdido * (meta_recupero / 100)
+    
+    col_a, col_b = st.columns([1, 3])
+    with col_a:
+        st.metric(f"Ganancia Extra ({meta_recupero}%)", f"$ {dinero_recuperable:,.0f}")
+    with col_b:
+        # Barra de progreso visual
+        st.progress(meta_recupero / 100)
+        st.caption(f"Con una gestión del {meta_recupero}%, el hospital ingresaría **${dinero_recuperable:,.0f} adicionales** este mes.")
+
+    st.markdown("---")
+
+    # 3. GRÁFICO DE IMPACTO
+    st.subheader("📊 ¿Dónde se nos va el dinero? (Top Servicios)")
+    
     grp_perdida = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().reset_index()
     grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True).tail(10)
     
-    # Gráfico de barras
     fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
-                 title="Top 10 Servicios con Mayor Pérdida", text_auto='.2s')
+                 text_auto='.2s')
     fig.update_traces(marker_color='#FF5252')
+    fig.update_layout(xaxis_title="Monto Perdido ($)", yaxis_title="Servicio")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla de Detalle
-    with st.expander("📄 Ver Detalle de Cálculo"):
-        st.write("Detalle de pérdida por profesional:")
-        cols_ver = ['FECHA_INICIO', 'PROFESIONAL', 'SERVICIO', 'CONSULTORIOS_REALES', 'RENDIMIENTO_USADO', 'VALOR_TURNO', 'DINERO_PERDIDO']
-        # Estilo para tabla
-        st.dataframe(df_perdidas[cols_ver].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}', 'VALOR_TURNO': '${:,.0f}'}), use_container_width=True)
-
-except Exception as e:
-    st.error(f"Hubo un error de cálculo: {e}")
+    # 4. TABLA DETALLE
+    with st.expander("📄 Ver Detalle Desglosado"):
+        st.dataframe(df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}'}), use_container_width=True)
