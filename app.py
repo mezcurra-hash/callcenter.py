@@ -16,7 +16,7 @@ st.markdown("Cálculo de facturación potencial y pérdidas por ausentismo basad
 st.markdown("---")
 
 # ==============================================================================
-# 1. CARGA DE DATOS (LAS 3 BASES)
+# 1. CARGA DE DATOS
 # ==============================================================================
 @st.cache_data
 def cargar_datos_completo():
@@ -24,7 +24,7 @@ def cargar_datos_completo():
     url_oferta = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=1524527213&single=true&output=csv"
     # 2. AUSENCIAS
     url_ausencias = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=2132722842&single=true&output=csv"
-    # 3. VALORES (LINK NUEVO CORRECTO ✅)
+    # 3. VALORES
     url_valores = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=554651129&single=true&output=csv"
     
     df_of = pd.read_csv(url_oferta)
@@ -63,11 +63,9 @@ try:
     with st.sidebar:
         st.header("🎛️ Configuración Financiera")
         
-        # Filtro Fecha
         fechas_disp = sorted(df_valores['PERIODO'].unique())
-        
         if not fechas_disp:
-            st.error("No se encontraron fechas en BD_VALORES. Revisa la columna PERIODO.")
+            st.error("No hay fechas en BD_VALORES.")
             st.stop()
 
         periodo_sel = st.selectbox("Periodo a Analizar:", fechas_disp, format_func=lambda x: x.strftime("%B %Y"))
@@ -78,11 +76,10 @@ try:
         df_au_f = df_ausencia[(df_ausencia['FECHA_INICIO'].dt.year == periodo_sel.year) & (df_ausencia['FECHA_INICIO'].dt.month == periodo_sel.month)]
 
         st.divider()
-        
         usar_slider = st.checkbox("¿Sobrescribir Rendimiento?", value=False)
         rend_manual = 14
         if usar_slider:
-            rend_manual = st.slider("Pacientes por Consultorio (Global):", 1, 30, 14)
+            rend_manual = st.slider("Pacientes por Consultorio:", 1, 30, 14)
 
     # ==============================================================================
     # 3. CÁLCULOS
@@ -104,71 +101,55 @@ try:
     df_perdidas['TURNOS_PERDIDOS'] = df_perdidas['CONSULTORIOS_REALES'] * df_perdidas['RENDIMIENTO_USADO']
     df_perdidas['DINERO_PERDIDO'] = df_perdidas['TURNOS_PERDIDOS'] * df_perdidas['VALOR_TURNO']
 
-   # ==============================================================================
-    # 4. DASHBOARD MEJORADO
+    # ==============================================================================
+    # 4. DASHBOARD MEJORADO 🚀
     # ==============================================================================
     
-    # --- CÁLCULOS MACRO ---
+    # Cálculos Macro
     total_facturado = df_ingresos['FACTURACION_REAL'].sum()
     total_perdido = df_perdidas['DINERO_PERDIDO'].sum()
     total_potencial = total_facturado + total_perdido
     
-    # Porcentaje de impacto (La Fuga)
     pct_fuga = (total_perdido / total_potencial * 100) if total_potencial > 0 else 0
-    
-    # Proyección Anual (Simple: Mes Actual x 12)
     proyeccion_anual = total_perdido * 12
 
-    # --- VISUALIZACIÓN ---
-
-    # 1. KPIs PRINCIPALES
+    # A. SEMÁFORO FINANCIERO
     st.markdown("### 🚦 Semáforo Financiero")
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     
-    kpi1.metric("💰 Facturación Base", f"$ {total_facturado:,.0f}", help="Lo que realmente se ofertó")
-    
-    # Aquí mostramos la pérdida y el porcentaje rojo
-    kpi2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{pct_fuga:.1f}% de Fuga", delta_color="inverse")
-    
-    kpi3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Escenario ideal sin ausencias")
-    
-    # El dato que asusta (Anualizado)
-    kpi4.metric("📅 Proyección Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Si la tendencia sigue", delta_color="inverse")
+    kpi1.metric("💰 Facturación Base", f"$ {total_facturado:,.0f}", help="Oferta Real Actual")
+    kpi2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{pct_fuga:.1f}% Fuga", delta_color="inverse")
+    kpi3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Facturación sin ausencias")
+    kpi4.metric("📅 Proy. Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Tendencia 12 meses", delta_color="inverse")
 
     st.markdown("---")
 
-    # 2. SIMULADOR DE RECUPERO (NUEVO) 🎯
-    st.info("🎯 **Estrategia de Recupero:** No podemos evitar todas las ausencias, pero... ¿cuánta plata ganaríamos si gestionamos mejor?")
-    
-    # Slider de meta
-    meta_recupero = st.slider("Si logramos recuperar el X% de los consultorios caídos:", 0, 100, 50, key="slider_meta")
-    
-    # Cálculo de dinero recuperable
+    # B. SIMULADOR DE RECUPERO
+    st.info("🎯 **Estrategia de Recupero:** ¿Cuánto ganaríamos si gestionamos mejor las licencias?")
+    meta_recupero = st.slider("Meta de Recupero (% de ausencias evitadas):", 0, 100, 50, key="slider_meta")
     dinero_recuperable = total_perdido * (meta_recupero / 100)
     
     col_a, col_b = st.columns([1, 3])
     with col_a:
         st.metric(f"Ganancia Extra ({meta_recupero}%)", f"$ {dinero_recuperable:,.0f}")
     with col_b:
-        # Barra de progreso visual
         st.progress(meta_recupero / 100)
-        st.caption(f"Con una gestión del {meta_recupero}%, el hospital ingresaría **${dinero_recuperable:,.0f} adicionales** este mes.")
+        st.caption(f"Gestionando el {meta_recupero}% de las faltas, ingresamos **${dinero_recuperable:,.0f}** extra.")
 
     st.markdown("---")
 
-    # 3. GRÁFICO DE IMPACTO
-    st.subheader("📊 ¿Dónde se nos va el dinero? (Top Servicios)")
-    
+    # C. GRÁFICO IMPACTO
+    st.subheader("📊 Top Servicios con Mayor Pérdida ($)")
     grp_perdida = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().reset_index()
     grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True).tail(10)
     
-    fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
-                 text_auto='.2s')
+    fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', text_auto='.2s')
     fig.update_traces(marker_color='#FF5252')
-    fig.update_layout(xaxis_title="Monto Perdido ($)", yaxis_title="Servicio")
     st.plotly_chart(fig, use_container_width=True)
 
-    # 4. TABLA DETALLE
-    with 
-    st.expander("📄 Ver Detalle Desglosado"):
-    st.dataframe(df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}'}), use_container_width=True)
+    # D. TABLA DETALLE
+    with st.expander("📄 Ver Detalle Desglosado"):
+        st.dataframe(df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}'}), use_container_width=True)
+
+except Exception as e:
+    st.error(f"Hubo un error de cálculo: {e}")
