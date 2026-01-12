@@ -74,12 +74,15 @@ try:
     # ==============================================================================
     # 2. FILTROS
     # ==============================================================================
-    with st.sidebar:
+   with st.sidebar:
         st.header("🎛️ Configuración Financiera")
         
         # Filtro Fecha (Basado en la hoja de Valores)
+        # 1. Obtenemos las fechas únicas
         fechas_disp = sorted(df_valores['PERIODO'].unique())
-        periodo_sel = st.selectbox("Periodo a Analizar:", dates_disp, format_func=lambda x: x.strftime("%B %Y"))
+        
+        # 2. Creamos el selector USANDO LA VARIABLE CORRECTA (fechas_disp)
+        periodo_sel = st.selectbox("Periodo a Analizar:", fechas_disp, format_func=lambda x: x.strftime("%B %Y"))
         
         # Filtramos las bases por ese mes
         df_val_f = df_valores[df_valores['PERIODO'] == periodo_sel]
