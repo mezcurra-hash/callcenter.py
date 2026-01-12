@@ -24,12 +24,9 @@ def cargar_datos_completo():
     url_oferta = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=1524527213&single=true&output=csv"
     # 2. AUSENCIAS
     url_ausencias = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=2132722842&single=true&output=csv"
-    # 3. VALORES (¡REVISA QUE ESTE LINK SEA EL DE TU CSV NUEVO!)
-    url_valores = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=0&single=true&output=csv" 
-    # ^^^ ATENCIÓN: Pegué un link genérico arriba. SI YA TIENES TU LINK DE BD_VALORES, REEMPLÁZALO AHÍ.
+    # 3. VALORES (LINK NUEVO CORRECTO ✅)
+    url_valores = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=554651129&single=true&output=csv"
     
-    if "PEGAR" in url_valores: return None, None, None
-
     df_of = pd.read_csv(url_oferta)
     df_au = pd.read_csv(url_ausencias)
     df_val = pd.read_csv(url_valores)
@@ -60,10 +57,6 @@ def cargar_datos_completo():
 try:
     df_oferta, df_ausencia, df_valores = cargar_datos_completo()
 
-    if df_valores is None:
-        st.error("⚠️ Falta el Link de BD_VALORES.")
-        st.stop()
-
     # ==============================================================================
     # 2. FILTROS
     # ==============================================================================
@@ -73,7 +66,10 @@ try:
         # Filtro Fecha
         fechas_disp = sorted(df_valores['PERIODO'].unique())
         
-        # CORRECCIÓN AQUI: Usamos fechas_disp
+        if not fechas_disp:
+            st.error("No se encontraron fechas en BD_VALORES. Revisa la columna PERIODO.")
+            st.stop()
+
         periodo_sel = st.selectbox("Periodo a Analizar:", fechas_disp, format_func=lambda x: x.strftime("%B %Y"))
         
         # Filtrado
@@ -128,17 +124,21 @@ try:
 
     st.subheader("📊 Impacto Económico por Servicio")
     
+    # Agrupar y ordenar
     grp_perdida = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().reset_index()
     grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True).tail(10)
     
+    # Gráfico de barras
     fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
                  title="Top 10 Servicios con Mayor Pérdida", text_auto='.2s')
     fig.update_traces(marker_color='#FF5252')
     st.plotly_chart(fig, use_container_width=True)
 
+    # Tabla de Detalle
     with st.expander("📄 Ver Detalle de Cálculo"):
         st.write("Detalle de pérdida por profesional:")
         cols_ver = ['FECHA_INICIO', 'PROFESIONAL', 'SERVICIO', 'CONSULTORIOS_REALES', 'RENDIMIENTO_USADO', 'VALOR_TURNO', 'DINERO_PERDIDO']
+        # Estilo para tabla
         st.dataframe(df_perdidas[cols_ver].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}', 'VALOR_TURNO': '${:,.0f}'}), use_container_width=True)
 
 except Exception as e:
