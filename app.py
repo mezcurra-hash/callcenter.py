@@ -102,13 +102,15 @@ try:
     df_perdidas['DINERO_PERDIDO'] = df_perdidas['TURNOS_PERDIDOS'] * df_perdidas['VALOR_TURNO']
 
     # ==============================================================================
-    # 4. DASHBOARD MEJORADO 🚀
+    # 4. DASHBOARD MEJORADO (CON TURNOS VISIBLES 👁️)
     # ==============================================================================
     
     # Cálculos Macro
     total_facturado = df_ingresos['FACTURACION_REAL'].sum()
     total_perdido = df_perdidas['DINERO_PERDIDO'].sum()
     total_potencial = total_facturado + total_perdido
+    
+    turnos_totales_perdidos = df_perdidas['TURNOS_PERDIDOS'].sum() # <--- DATO CLAVE
     
     pct_fuga = (total_perdido / total_potencial * 100) if total_potencial > 0 else 0
     proyeccion_anual = total_perdido * 12
@@ -118,7 +120,10 @@ try:
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     
     kpi1.metric("💰 Facturación Base", f"$ {total_facturado:,.0f}", help="Oferta Real Actual")
-    kpi2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{pct_fuga:.1f}% Fuga", delta_color="inverse")
+    
+    # AQUI CAMBIAMOS EL DELTA PARA MOSTRAR LOS TURNOS PERDIDOS
+    kpi2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{turnos_totales_perdidos:,.0f} Turnos ({pct_fuga:.1f}%)", delta_color="inverse")
+    
     kpi3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Facturación sin ausencias")
     kpi4.metric("📅 Proy. Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Tendencia 12 meses", delta_color="inverse")
 
@@ -138,18 +143,34 @@ try:
 
     st.markdown("---")
 
-    # C. GRÁFICO IMPACTO
-    st.subheader("📊 Top Servicios con Mayor Pérdida ($)")
-    grp_perdida = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().reset_index()
+    # C. GRÁFICO IMPACTO (AHORA CON TURNOS EN EL TEXTO)
+    st.subheader("📊 Top Servicios con Mayor Pérdida ($ y Turnos)")
+    
+    # Agrupamos sumando dinero Y turnos
+    grp_perdida = df_perdidas.groupby('SERVICIO')[['DINERO_PERDIDO', 'TURNOS_PERDIDOS']].sum().reset_index()
     grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True).tail(10)
     
-    fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', text_auto='.2s')
-    fig.update_traces(marker_color='#FF5252')
+    # Creamos una columna de texto personalizada para la barra
+    # Ej: "$ 20M (400 Turnos)"
+    def formato_texto(row):
+        millones = row['DINERO_PERDIDO'] / 1000000
+        turnos = row['TURNOS_PERDIDOS']
+        return f"$ {millones:.1f}M ({turnos:,.0f} t)"
+
+    grp_perdida['ETIQUETA'] = grp_perdida.apply(formato_texto, axis=1)
+    
+    fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
+                 text='ETIQUETA', # Usamos nuestra etiqueta personalizada
+                 hover_data=['TURNOS_PERDIDOS']) # Para que aparezca en el mouseover
+                 
+    fig.update_traces(marker_color='#FF5252', textposition='inside')
+    fig.update_layout(xaxis_title="Monto Perdido ($)", yaxis_title="Servicio")
     st.plotly_chart(fig, use_container_width=True)
 
-    # D. TABLA DETALLE
+    # D. TABLA DETALLE (CON COLUMNA DE TURNOS AGREGADA)
     with st.expander("📄 Ver Detalle Desglosado"):
-        st.dataframe(df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}'}), use_container_width=True)
+        # Agregué 'TURNOS_PERDIDOS' a la lista
+        st.dataframe(df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'TURNOS_PERDIDOS', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}', 'TURNOS_PERDIDOS': '{:,.0f}'}), use_container_width=True)
 
 except Exception as e:
     st.error(f"Hubo un error de cálculo: {e}")
