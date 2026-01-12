@@ -1,19 +1,3 @@
-¡Uh, el clásico dolor de cabeza de Python! 🤯 Ese error (IndentationError) significa que al copiar y pegar el bloque arreglado, los espacios quedaron desalineados.
-
-Python es muy estricto: si una línea tiene 4 espacios y la siguiente tiene 3, o si mezclamos "Tabs" con espacios, el programa explota.
-
-Para que no sufras tratando de alinear línea por línea, aquí tienes el CÓDIGO COMPLETO Y CORREGIDO (versión definitiva).
-
-Hice dos cosas:
-
-Arreglé el error de dates_disp (ahora usa fechas_disp).
-
-Alineé todo perfectamente para que no tengas problemas de espacios.
-
-👉 Borra todo lo que hay en tu archivo y pega esto limpio:
-
-Python
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
