@@ -1,195 +1,161 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Llamados/Turnos - Call Center", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="Simulador Financiero CEMIC", layout="wide", page_icon="💰")
 
+# Estilos
 st.markdown("""
 <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stMetricDelta"] svg { display: inline; }
-    /* Estilo Tarjeta Oscura */
-    div[data-testid="stMetric"] {
-        background-color: #262730;
-        border: 1px solid #464b5f;
-        padding: 10px;
-        border-radius: 10px;
-    }
+    div[data-testid="stMetric"] { background-color: #1E1E1E; border: 1px solid #333; border-radius: 10px; padding: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CABECERA CON LOGO ---
-col1, col2 = st.columns([1, 5]) 
-with col1:
-    # Logo oficial
-    st.image("https://www.cemic.edu.ar/assets/img/logo/logo-cemic.png", width=100) 
-with col2:
-    st.title("Call Center - CEMIC")
+st.title("💰 Simulador de Impacto Económico")
+st.markdown("Cálculo de facturación potencial y pérdidas por ausentismo basado en valores parametrizados.")
 st.markdown("---")
 
-# --- 1. CARGA Y LIMPIEZA DE DATOS ---
+# ==============================================================================
+# 1. CARGA DE DATOS (LAS 3 BASES)
+# ==============================================================================
 @st.cache_data
-def cargar_datos():
-    url_csv = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOxpr7RRNTLGO96pUK8HJ0iy2ZHeqNpiR7OelleljCVoWPuJCO26q5z66VisWB76khl7Tmsqh5CqNC/pub?gid=0&single=true&output=csv" 
+def cargar_datos_completo():
+    # 1. OFERTA (Volumen Real)
+    url_oferta = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=1524527213&single=true&output=csv"
+    # 2. AUSENCIAS (Volumen Perdido)
+    url_ausencias = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=2132722842&single=true&output=csv"
+    # 3. VALORES (Precios y Rendimiento) -> ¡PEGA TU NUEVO LINK ACÁ ABAJO!
+    url_valores = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHFwl-Dxn-Rw9KN_evkCMk2Er8lQqgZMzAtN4LuEkWcCeBVUNwgb8xeIFKvpyxMgeGTeJ3oEWKpMZj/pub?gid=554651129&single=true&output=csv" 
     
-    df = pd.read_csv(url_csv, dtype=str)
-    
-    cols_numericas = [
-        'RECIBIDAS_FIN', 'ATENDIDAS_FIN', 'PERDIDAS_FIN', 
-        'RECIBIDAS_PREPAGO', 'ATENDIDAS_PREPAGO', 'PERDIDAS_PREPAGO',
-        'TURNOS_PRACT_TEL', 'TURNOS_CONS_TEL', 'TURNOS_TOTAL_TEL'
-    ]
-    
-    for col in cols_numericas:
-        if col in df.columns:
-            df[col] = df[col].str.replace('.', '', regex=False)
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    df = df.fillna(0)
-    return df
+    # Si no hay link, devolvemos error controlado
+    if "PEGAR" in url_valores: return None, None, None
 
-def parsear_fecha_custom(texto_fecha):
-    if pd.isna(texto_fecha): return None
-    texto = str(texto_fecha).lower().strip().replace(".", "")
+    df_of = pd.read_csv(url_oferta)
+    df_au = pd.read_csv(url_ausencias)
+    df_val = pd.read_csv(url_valores)
     
-    meses = {
-        'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6,
-        'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dic': 12,
-        'jan': 1, 'apr': 4, 'aug': 8, 'dec': 12 
-    }
+    # --- LIMPIEZA ---
+    # Fechas
+    df_of['PERIODO'] = pd.to_datetime(df_of['PERIODO'], dayfirst=True, errors='coerce')
+    df_au['FECHA_INICIO'] = pd.to_datetime(df_au['FECHA_INICIO'], dayfirst=True, errors='coerce')
+    df_val['PERIODO'] = pd.to_datetime(df_val['PERIODO'], dayfirst=True, errors='coerce')
     
-    partes = texto.replace("-", " ").split()
-    if len(partes) < 2: return None
+    # Limpieza de columnas clave (Espacios, mayúsculas)
+    for df in [df_of, df_au, df_val]:
+        df.columns = df.columns.str.strip()
+        if 'SERVICIO' in df.columns:
+            df['SERVICIO'] = df['SERVICIO'].astype(str).str.strip().str.upper()
+
+    # Limpieza de VALOR_TURNO (Sacar signos $ y puntos)
+    if 'VALOR_TURNO' in df_val.columns:
+        # Convertimos a string, sacamos $ y puntos, luego a número
+        df_val['VALOR_TURNO'] = df_val['VALOR_TURNO'].astype(str).str.replace('$','', regex=False).str.replace('.','', regex=False)
+        df_val['VALOR_TURNO'] = pd.to_numeric(df_val['VALOR_TURNO'], errors='coerce').fillna(0)
     
-    mes_txt = partes[0][:3] 
-    anio_txt = partes[1]
-    
-    if len(anio_txt) == 2: anio_txt = "20" + anio_txt
-    
-    num_mes = meses.get(mes_txt)
-    if num_mes:
-        return pd.Timestamp(year=int(anio_txt), month=num_mes, day=1)
-    return None
+    # Limpieza de RENDIMIENTO
+    if 'RENDIMIENTO' in df_val.columns:
+        df_val['RENDIMIENTO'] = pd.to_numeric(df_val['RENDIMIENTO'], errors='coerce').fillna(14) # Default 14
+
+    # Asegurar columna en ausencias
+    col_target = 'CONSULTORIOS_REALES'
+    if col_target not in df_au.columns: df_au[col_target] = df_au['DIAS_CAIDOS']
+    df_au[col_target] = pd.to_numeric(df_au[col_target], errors='coerce').fillna(0)
+
+    return df_of, df_au, df_val
 
 try:
-    df = cargar_datos()
-    
-    df['FECHA_REAL'] = df['MES'].apply(parsear_fecha_custom)
-    df = df.dropna(subset=['FECHA_REAL']).sort_values('FECHA_REAL')
-    
-    df['TOTAL_LLAMADAS'] = df['RECIBIDAS_FIN'] + df['RECIBIDAS_PREPAGO']
-    df['TOTAL_ATENDIDAS'] = df['ATENDIDAS_FIN'] + df['ATENDIDAS_PREPAGO']
-    df['TOTAL_PERDIDAS'] = df['PERDIDAS_FIN'] + df['PERDIDAS_PREPAGO']
-    
-    df['SLA_GLOBAL'] = (df['TOTAL_ATENDIDAS'] / df['TOTAL_LLAMADAS']) * 100
+    df_oferta, df_ausencia, df_valores = cargar_datos_completo()
 
-    # --- BARRA LATERAL ---
+    if df_valores is None:
+        st.error("⚠️ **Falta el Link de BD_VALORES.**")
+        st.info("Por favor, publica tu nueva hoja de Google Sheets como CSV y pega el link en la línea 27 del código.")
+        st.stop()
+
+    # ==============================================================================
+    # 2. FILTROS
+    # ==============================================================================
     with st.sidebar:
-        st.header("📞 Panel de Control")
-        modo = st.radio("Modo de Análisis:", ["📅 Evolución Mensual", "🔄 Comparativa Interanual"])
+        st.header("🎛️ Configuración Financiera")
+        
+        # Filtro Fecha (Basado en la hoja de Valores)
+        fechas_disp = sorted(df_valores['PERIODO'].unique())
+        periodo_sel = st.selectbox("Periodo a Analizar:", dates_disp, format_func=lambda x: x.strftime("%B %Y"))
+        
+        # Filtramos las bases por ese mes
+        df_val_f = df_valores[df_valores['PERIODO'] == periodo_sel]
+        df_of_f = df_oferta[(df_oferta['PERIODO'].dt.year == periodo_sel.year) & (df_oferta['PERIODO'].dt.month == periodo_sel.month)]
+        df_au_f = df_ausencia[(df_ausencia['FECHA_INICIO'].dt.year == periodo_sel.year) & (df_ausencia['FECHA_INICIO'].dt.month == periodo_sel.month)]
+
         st.divider()
-        segmento = st.selectbox("Filtrar por Tipo:", ["Todo Unificado", "Solo Financiadores", "Solo Prepago"])
-        st.divider()
-        st.info("💡 Tip: La 'Comparativa Interanual' busca automáticamente el mismo mes en años anteriores.")
-
-    # --- VISUALIZACIÓN ---
-
-    if modo == "📅 Evolución Mensual":
-        fechas_dispo = sorted(df['FECHA_REAL'].unique(), reverse=True)
-        fecha_sel = st.selectbox("Seleccionar Mes:", fechas_dispo, format_func=lambda x: x.strftime("%B-%Y").capitalize())
         
-        datos_mes = df[df['FECHA_REAL'] == fecha_sel].iloc[0]
-        
-        if segmento == "Solo Financiadores":
-            rec, aten, perd = datos_mes['RECIBIDAS_FIN'], datos_mes['ATENDIDAS_FIN'], datos_mes['PERDIDAS_FIN']
-        elif segmento == "Solo Prepago":
-            rec, aten, perd = datos_mes['RECIBIDAS_PREPAGO'], datos_mes['ATENDIDAS_PREPAGO'], datos_mes['PERDIDAS_PREPAGO']
-        else:
-            rec, aten, perd = datos_mes['TOTAL_LLAMADAS'], datos_mes['TOTAL_ATENDIDAS'], datos_mes['TOTAL_PERDIDAS']
-        
-        sla_mes = (aten / rec * 100) if rec > 0 else 0
-        pct_perdidas = (perd / rec * 100) if rec > 0 else 0
+        # Opción para jugar con el rendimiento en vivo
+        usar_slider = st.checkbox("¿Sobrescribir Rendimiento?", value=False)
+        rend_manual = 14
+        if usar_slider:
+            rend_manual = st.slider("Pacientes por Consultorio (Global):", 1, 30, 14)
 
-        # LÓGICA DE COLORES DINÁMICA
-        # Perdidas > 10% es malo (Rojo/"normal"), < 10% es bueno (Verde/"inverse")
-        color_delta_perdidas = "normal" if pct_perdidas > 10 else "inverse"
-        
-        # SLA > 90% es bueno (Verde/"normal"), < 90% es malo (Rojo/"inverse")
-        color_delta_sla = "normal" if sla_mes >= 90 else "inverse"
+    # ==============================================================================
+    # 3. EL CÁLCULO (CRUCE DE BASES) 🧠
+    # ==============================================================================
+    
+    # Paso A: Unir precios a la Oferta Real
+    # Usamos 'left' join para que si falta precio en algun servicio, no desaparezca el dato (quedará precio 0 o nulo)
+    df_ingresos = df_of_f.merge(df_val_f[['SERVICIO', 'VALOR_TURNO']], on='SERVICIO', how='left')
+    df_ingresos['VALOR_TURNO'] = df_ingresos['VALOR_TURNO'].fillna(0) # Servicios sin precio valen 0
+    df_ingresos['FACTURACION_REAL'] = df_ingresos['TURNOS_MENSUAL'] * df_ingresos['VALOR_TURNO']
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("📞 Llamadas Recibidas", f"{rec:,.0f}")
-        c2.metric("✅ Atendidas", f"{aten:,.0f}", delta=f"{(aten/rec*100):.1f}%")
-        c3.metric("❌ Perdidas (Abandono)", f"{perd:,.0f}", delta=f"-{pct_perdidas:.1f}%", delta_color=color_delta_perdidas)
-        c4.metric("📊 Nivel de Servicio", f"{sla_mes:.1f}%", delta="Meta: >90%", delta_color=color_delta_sla)
-
-        st.markdown("---")
-
-        col_graf1, col_graf2 = st.columns([1, 1])
-        
-        with col_graf1:
-            st.subheader("Nivel de Atención")
-            
-            df_pie = pd.DataFrame({
-                'Estado': ['Atendidas', 'Perdidas'],
-                'Cantidad': [aten, perd]
-            })
-            # Colores Fijos
-            colores_fijos = {'Atendidas': '#4CAF50', 'Perdidas': '#FF5252'}
-            
-            fig_pie = px.pie(
-                df_pie, 
-                values='Cantidad', 
-                names='Estado',
-                color='Estado', 
-                color_discrete_map=colores_fijos,
-                hole=0.4
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-            
-        with col_graf2:
-            st.subheader("Cantidad de turnos (Ts y AS)")
-            datos_canales = {
-                'Canal': ['Consultorios (Tel)', 'Prácticas (Tel)', 'Total (Tel)'],
-                'Turnos': [datos_mes['TURNOS_CONS_TEL'], datos_mes['TURNOS_PRACT_TEL'], datos_mes['TURNOS_TOTAL_TEL']]
-            }
-            fig_bar = px.bar(datos_canales, x='Canal', y='Turnos', color='Canal')
-            st.plotly_chart(fig_bar, use_container_width=True)
-
-    # === MODO 2: COMPARATIVA INTERANUAL ===
+    # Paso B: Unir precios y rendimiento a las Ausencias
+    df_perdidas = df_au_f.merge(df_val_f[['SERVICIO', 'VALOR_TURNO', 'RENDIMIENTO']], on='SERVICIO', how='left')
+    df_perdidas['VALOR_TURNO'] = df_perdidas['VALOR_TURNO'].fillna(0)
+    
+    # Decidimos qué rendimiento usar (el del Excel o el del Slider)
+    if usar_slider:
+        df_perdidas['RENDIMIENTO_USADO'] = rend_manual
     else:
-        st.subheader("🔄 Análisis Interanual (Mismo mes, distintos años)")
-        meses_nombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        mes_target_nombre = st.selectbox("¿Qué mes quieres comparar?", meses_nombres)
-        mes_target_num = meses_nombres.index(mes_target_nombre) + 1
+        df_perdidas['RENDIMIENTO_USADO'] = df_perdidas['RENDIMIENTO'].fillna(14)
         
-        df_interanual = df[df['FECHA_REAL'].dt.month == mes_target_num].copy()
-        
-        if df_interanual.empty:
-            st.warning(f"No encontré datos para {mes_target_nombre}.")
-            st.stop()
-            
-        df_interanual['AÑO'] = df_interanual['FECHA_REAL'].dt.year.astype(str)
-        
-        tab1, tab2 = st.tabs(["📈 Evolución Visual", "📄 Datos"])
-        
-        with tab1:
-            fig_inter = go.Figure()
-            fig_inter.add_trace(go.Bar(x=df_interanual['AÑO'], y=df_interanual['TOTAL_ATENDIDAS'], name='Atendidas', marker_color='#4CAF50'))
-            fig_inter.add_trace(go.Bar(x=df_interanual['AÑO'], y=df_interanual['TOTAL_PERDIDAS'], name='Perdidas', marker_color='#FF5252'))
-            fig_inter.update_layout(barmode='group', title=f"Desempeño en {mes_target_nombre}")
-            st.plotly_chart(fig_inter, use_container_width=True)
-            st.caption("Evolución de Turnos Telefónicos Totales:")
-            st.line_chart(data=df_interanual, x='AÑO', y='TURNOS_TOTAL_TEL')
+    # Cálculo Clave: Consultorios * Pacientes * Precio
+    df_perdidas['TURNOS_PERDIDOS'] = df_perdidas['CONSULTORIOS_REALES'] * df_perdidas['RENDIMIENTO_USADO']
+    df_perdidas['DINERO_PERDIDO'] = df_perdidas['TURNOS_PERDIDOS'] * df_perdidas['VALOR_TURNO']
 
-        with tab2:
-            st.dataframe(df_interanual[['AÑO', 'TOTAL_LLAMADAS', 'TOTAL_ATENDIDAS', 'TOTAL_PERDIDAS', 'SLA_GLOBAL']].style.format({
-                'TOTAL_LLAMADAS': '{:,.0f}', 'TOTAL_ATENDIDAS': '{:,.0f}', 'TOTAL_PERDIDAS': '{:,.0f}', 'SLA_GLOBAL': '{:.1f}%'
-            }))
+    # ==============================================================================
+    # 4. DASHBOARD DE RESULTADOS
+    # ==============================================================================
+    
+    # Totales Generales
+    total_facturado = df_ingresos['FACTURACION_REAL'].sum()
+    total_perdido = df_perdidas['DINERO_PERDIDO'].sum()
+    total_potencial = total_facturado + total_perdido
+    
+    turnos_reales = df_ingresos['TURNOS_MENSUAL'].sum()
+    turnos_perdidos = df_perdidas['TURNOS_PERDIDOS'].sum()
+
+    # KPIs
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💰 Facturación Base (Oferta)", f"$ {total_facturado:,.0f}", f"{turnos_reales:,.0f} turnos")
+    c2.metric("💸 Dinero Perdido (Ausentismo)", f"$ {total_perdido:,.0f}", f"-{turnos_perdidos:,.0f} turnos", delta_color="inverse")
+    c3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Facturación teórica si no hubiera habido ausencias")
+
+    st.markdown("---")
+
+    # Gráfico de Impacto por Servicio
+    st.subheader("📊 Impacto Económico por Servicio")
+    
+    # Agrupamos por servicio para el gráfico
+    # 1. Agrupar pérdidas
+    grp_perdida = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().reset_index()
+    grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True).tail(10) # Top 10 que más pierden
+    
+    fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
+                 title="Top 10 Servicios con Mayor Pérdida Económica", text_auto='.2s')
+    fig.update_traces(marker_color='#FF5252') # Rojo alerta
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Tabla de Detalle
+    with st.expander("📄 Ver Detalle de Cálculo (Auditoría)"):
+        st.write("Esta tabla muestra exactamente cómo se calculó la pérdida de cada médico:")
+        cols_ver = ['FECHA_INICIO', 'PROFESIONAL', 'SERVICIO', 'CONSULTORIOS_REALES', 'RENDIMIENTO_USADO', 'VALOR_TURNO', 'DINERO_PERDIDO']
+        st.dataframe(df_perdidas[cols_ver].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}', 'VALOR_TURNO': '${:,.0f}'}), use_container_width=True)
 
 except Exception as e:
-    st.error("Hubo un error cargando los datos.")
-    st.expander("Ver error técnico").write(e)
+    st.error(f"Hubo un error de cálculo: {e}")
