@@ -229,7 +229,7 @@ try:
     pct_concentracion = (suma_top_3 / total_perdido) * 100
     nombres_top_3 = ", ".join(top_3_servicios['SERVICIO'].iloc[::-1].tolist()) # Invertimos para mostrar el 1ro primero
     
-    st.warning(f"⚠️**:** El **{pct_concentracion:.0f}%** de toda la pérdida financiera se concentra en solo 3 servicios: **{nombres_top_3}**.")
+    st.warning(f"⚠️ **:** El **{pct_concentracion:.0f}%** de toda la pérdida financiera se concentra en solo 3 servicios: **{nombres_top_3}**.")
     # -------------------------------------
     
     grp_perdida_top10 = grp_perdida.tail(10) # Para el gráfico usamos los top 10
