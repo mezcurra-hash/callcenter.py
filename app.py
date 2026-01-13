@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go # Agregamos graph_objects para gráficos más pro
+import plotly.graph_objects as go 
 
 # Configuración de página
 st.set_page_config(page_title="Simulador Financiero CEMIC", layout="wide", page_icon="💰")
@@ -16,7 +16,6 @@ st.markdown("""
     footer {visibility: hidden;}
     
     /* KPI CARDS ADAPTABLES */
-    /* Usamos variables CSS (--...) para que cambien solas según el tema */
     div[data-testid="stMetric"] {
         background-color: var(--secondary-background-color); 
         border: 1px solid var(--text-color);
@@ -24,10 +23,10 @@ st.markdown("""
         padding: 15px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
         opacity: 0.95;
-        border-color: rgba(128, 128, 128, 0.2); /* Borde sutil */
+        border-color: rgba(128, 128, 128, 0.2); 
     }
 
-    /* Ajuste para móviles: achicar texto de métricas si la pantalla es chica */
+    /* Ajuste para móviles */
     @media (max-width: 768px) {
         div[data-testid="stMetricValue"] { font-size: 1.5rem !important; }
         div[data-testid="stMetricLabel"] { font-size: 0.8rem !important; }
@@ -132,46 +131,67 @@ try:
     # 4. VISUALIZACIÓN
     # ==============================================================================
     
-    # A. SEMÁFORO (KPIs)
+    # A. SEMÁFORO (KPIs con Tooltips ℹ️)
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("💰 Facturación Base", f"$ {total_facturado:,.0f}", f"{turnos_reales:,.0f} Turnos")
-    kpi2.metric("💸 Dinero Perdido", f"$ {total_perdido:,.0f}", f"-{turnos_totales_perdidos:,.0f} Turnos ({pct_fuga:.1f}%)", delta_color="inverse")
-    kpi3.metric("🚀 Potencial Total", f"$ {total_potencial:,.0f}", help="Escenario ideal")
-    kpi4.metric("📅 Proy. Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Tendencia 12 meses", delta_color="inverse")
+    
+    kpi1.metric(
+        "💰 Facturación Base", 
+        f"$ {total_facturado:,.0f}", 
+        f"{turnos_reales:,.0f} Turnos",
+        help="Suma total de (Turnos Ofertados x Valor Promedio del Servicio)."
+    )
+    
+    kpi2.metric(
+        "💸 Dinero Perdido", 
+        f"$ {total_perdido:,.0f}", 
+        f"-{turnos_totales_perdidos:,.0f} Turnos ({pct_fuga:.1f}%)", 
+        delta_color="inverse",
+        help="Dinero no ingresado por ausencias. Cálculo: (Consultorios Cancelados x Rendimiento x Valor Turno)."
+    )
+    
+    kpi3.metric(
+        "🚀 Potencial Total", 
+        f"$ {total_potencial:,.0f}", 
+        help="Escenario ideal (Facturación Real + Dinero Perdido) si no hubiera ausencias."
+    )
+    
+    kpi4.metric(
+        "📅 Proy. Anual Pérdida", 
+        f"$ {proyeccion_anual:,.0f}", 
+        "Tendencia 12 meses", 
+        delta_color="inverse",
+        help="Proyección lineal si el nivel de ausentismo de este mes se mantiene todo el año."
+    )
 
     st.markdown("---")
 
+    # B. SIMULADOR TÁCTICO
     st.subheader("🎯 Simulador de Estrategia")
     
-    # 1. Selector de Alcance (Radio Button Horizontal)
+    # 1. Selector de Alcance
     tipo_simulacion = st.radio(
         "Alcance de la Gestión:", 
         ["🏢 Nivel Global (Todo el CEMIC)", "🔬 Nivel Servicio (Focalizado)"],
         horizontal=True
     )
 
-    # Variables por defecto (Para el modo Global)
+    # Variables por defecto
     base_calculo = total_perdido
     texto_base = "la pérdida total anual"
     
-    # 2. Lógica Focalizada (Si elige 'Por Servicio')
+    # 2. Lógica Focalizada
     if tipo_simulacion == "🔬 Nivel Servicio (Focalizado)":
-        # Creamos la lista ordenada por quién pierde más plata
         lista_servicios = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().sort_values(ascending=False).index.tolist()
-        
-        # El Selectbox aparece solo si estamos en modo focalizado
         servicio_sel = st.selectbox("Seleccionar Servicio a intervenir:", lista_servicios)
         
-        # Recalculamos la base solo para ese servicio
         df_serv = df_perdidas[df_perdidas['SERVICIO'] == servicio_sel]
         base_calculo = df_serv['DINERO_PERDIDO'].sum()
         turnos_serv = df_serv['TURNOS_PERDIDOS'].sum()
         texto_base = f"la pérdida de {servicio_sel}"
         
-        # Mostramos un dato de contexto
         st.caption(f"📉 {servicio_sel} representa una fuga de **${base_calculo/1e6:,.1f}M** ({turnos_serv:,.0f} turnos perdidos).")
 
-    # 3. El Slider de Gestión (Común a ambos modos)
+    # 3. Slider
     col_sim_A, col_sim_B = st.columns([2, 1])
     
     with col_sim_A:
@@ -179,20 +199,16 @@ try:
         
     with col_sim_B:
         dinero_recuperable = base_calculo * (meta_recupero / 100)
-        
-        # Tarjeta de Resultado Simulado
         st.metric(
             label="💰 Ingreso Extra Estimado", 
             value=f"$ {dinero_recuperable:,.0f}",
             delta=f"Recuperando el {meta_recupero}%"
         )
     
-    # Barra de progreso visual
     st.progress(meta_recupero / 100)
     
-    # 4. Mensaje de Impacto (Insight)
+    # 4. Insight
     if tipo_simulacion == "🔬 Nivel Servicio (Focalizado)":
-        # Cálculo de impacto sobre el total del hospital
         impacto_total = (dinero_recuperable / total_perdido) * 100
         st.info(f"💡 Arreglando solo **{servicio_sel}**, resolvemos el **{impacto_total:.1f}%** del problema total del hospital.")
     else:
@@ -200,30 +216,56 @@ try:
 
     st.markdown("---")
 
-    # C. GRÁFICO DE IMPACTO (BARRAS)
+    # C. GRÁFICO DE IMPACTO (BARRAS) CON INSIGHT AUTOMÁTICO 🧠
     st.subheader("📊 Fuga de Dinero por Servicio (Top 10)")
     
     grp_perdida = df_perdidas.groupby('SERVICIO')[['DINERO_PERDIDO', 'TURNOS_PERDIDOS']].sum().reset_index()
-    grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True).tail(10)
+    grp_perdida = grp_perdida.sort_values('DINERO_PERDIDO', ascending=True) # Ascendente para el gráfico horizontal
     
-    # Etiqueta inteligente
+    # --- CÁLCULO DEL INSIGHT DE PARETO ---
+    # Tomamos los últimos 3 (que son los más altos porque ordenamos ascendente)
+    top_3_servicios = grp_perdida.tail(3)
+    suma_top_3 = top_3_servicios['DINERO_PERDIDO'].sum()
+    pct_concentracion = (suma_top_3 / total_perdido) * 100
+    nombres_top_3 = ", ".join(top_3_servicios['SERVICIO'].iloc[::-1].tolist()) # Invertimos para mostrar el 1ro primero
+    
+    st.warning(f"⚠️ **Insight Automático:** El **{pct_concentracion:.0f}%** de toda la pérdida financiera se concentra en solo 3 servicios: **{nombres_top_3}**.")
+    # -------------------------------------
+    
+    grp_perdida_top10 = grp_perdida.tail(10) # Para el gráfico usamos los top 10
+    
     def formato_texto(row):
         millones = row['DINERO_PERDIDO'] / 1000000
         return f"$ {millones:.1f}M"
 
-    grp_perdida['ETIQUETA'] = grp_perdida.apply(formato_texto, axis=1)
+    grp_perdida_top10['ETIQUETA'] = grp_perdida_top10.apply(formato_texto, axis=1)
     
-    fig = px.bar(grp_perdida, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
+    fig = px.bar(grp_perdida_top10, x='DINERO_PERDIDO', y='SERVICIO', orientation='h', 
                  text='ETIQUETA', 
                  hover_data=['TURNOS_PERDIDOS'])
     
     fig.update_traces(marker_color='#FF5252', textposition='inside')
-    fig.update_layout(xaxis_title="Pérdida ($)", yaxis_title=None, height=500)
+    fig.update_layout(xaxis_title="Pérdida ($)", yaxis_title=None, height=600, font=dict(size=14))
     st.plotly_chart(fig, use_container_width=True)
 
-    # D. DETALLE
-    with st.expander("📄 Ver Detalle de Pérdidas"):
-        st.dataframe(df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'TURNOS_PERDIDOS', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False).style.format({'DINERO_PERDIDO': '${:,.0f}', 'TURNOS_PERDIDOS': '{:,.0f}'}), use_container_width=True)
+    # D. DETALLE CON BOTÓN DE DESCARGA 📥
+    with st.expander("📄 Ver Detalle de Pérdidas y Descargar"):
+        # Mostramos la tabla como siempre
+        df_export = df_perdidas[['FECHA_INICIO', 'SERVICIO', 'PROFESIONAL', 'TURNOS_PERDIDOS', 'DINERO_PERDIDO']].sort_values('DINERO_PERDIDO', ascending=False)
+        st.dataframe(df_export.style.format({'DINERO_PERDIDO': '${:,.0f}', 'TURNOS_PERDIDOS': '{:,.0f}'}), use_container_width=True)
+        
+        st.markdown("###") # Espacio
+        
+        # --- BOTÓN DE DESCARGA ---
+        csv = df_export.to_csv(index=False).encode('utf-8')
+        
+        st.download_button(
+            label="📥 Descargar Reporte en Excel (CSV)",
+            data=csv,
+            file_name=f'reporte_perdidas_{periodo_sel.strftime("%Y_%m")}.csv',
+            mime='text/csv',
+            help="Haz clic para descargar estos datos y abrirlos en Excel."
+        )
 
 except Exception as e:
     st.error(f"Error de cálculo: {e}")
