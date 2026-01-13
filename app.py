@@ -143,20 +143,23 @@ try:
 
     st.subheader("🎯 Simulador de Estrategia")
     
-    # 1. Selector de Alcance
+    # 1. Selector de Alcance (Radio Button Horizontal)
     tipo_simulacion = st.radio(
         "Alcance de la Gestión:", 
         ["🏢 Nivel Global (Todo el CEMIC)", "🔬 Nivel Servicio (Focalizado)"],
         horizontal=True
     )
 
-    # Variables por defecto (Globales)
+    # Variables por defecto (Para el modo Global)
     base_calculo = total_perdido
     texto_base = "la pérdida total anual"
     
-    # 2. Lógica Focalizada
+    # 2. Lógica Focalizada (Si elige 'Por Servicio')
     if tipo_simulacion == "🔬 Nivel Servicio (Focalizado)":
+        # Creamos la lista ordenada por quién pierde más plata
         lista_servicios = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().sort_values(ascending=False).index.tolist()
+        
+        # El Selectbox aparece solo si estamos en modo focalizado
         servicio_sel = st.selectbox("Seleccionar Servicio a intervenir:", lista_servicios)
         
         # Recalculamos la base solo para ese servicio
@@ -165,14 +168,14 @@ try:
         turnos_serv = df_serv['TURNOS_PERDIDOS'].sum()
         texto_base = f"la pérdida de {servicio_sel}"
         
-        # Mostramos el dato del servicio seleccionado
-        st.caption(f"📉 {servicio_sel} representa una fuga de **${base_calculo/1e6:,.1f}M** ({turnos_serv:,.0f} turnos).")
+        # Mostramos un dato de contexto
+        st.caption(f"📉 {servicio_sel} representa una fuga de **${base_calculo/1e6:,.1f}M** ({turnos_serv:,.0f} turnos perdidos).")
 
-    # 3. Slider de Gestión
+    # 3. El Slider de Gestión (Común a ambos modos)
     col_sim_A, col_sim_B = st.columns([2, 1])
     
     with col_sim_A:
-        meta_recupero = st.slider(f"¿Qué % de {texto_base} podemos recuperar?", 0, 100, 50, key="slider_meta")
+        meta_recupero = st.slider(f"¿Qué % de {texto_base} podemos recuperar?", 0, 100, 25, key="slider_meta")
         
     with col_sim_B:
         dinero_recuperable = base_calculo * (meta_recupero / 100)
@@ -184,11 +187,12 @@ try:
             delta=f"Recuperando el {meta_recupero}%"
         )
     
-    # Barra de progreso visual para dar contexto
+    # Barra de progreso visual
     st.progress(meta_recupero / 100)
     
+    # 4. Mensaje de Impacto (Insight)
     if tipo_simulacion == "🔬 Nivel Servicio (Focalizado)":
-        # Cálculo de impacto sobre el total
+        # Cálculo de impacto sobre el total del hospital
         impacto_total = (dinero_recuperable / total_perdido) * 100
         st.info(f"💡 Arreglando solo **{servicio_sel}**, resolvemos el **{impacto_total:.1f}%** del problema total del hospital.")
     else:
