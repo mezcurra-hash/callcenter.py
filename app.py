@@ -141,20 +141,58 @@ try:
 
     st.markdown("---")
 
-    # ... (Aquí sigue la sección B: st.info("🎯 Estrategia de Recupero..."))
-    # B. SIMULADOR Y RECUPERO
-    st.info("🎯 **Estrategia de Recupero:** Simulador de impacto financiero por gestión.")
+    st.subheader("🎯 Simulador de Estrategia")
     
-    meta_recupero = st.slider("Si recuperamos el X% de las ausencias:", 0, 100, 50, key="slider_meta")
-    dinero_recuperable = total_perdido * (meta_recupero / 100)
+    # 1. Selector de Alcance
+    tipo_simulacion = st.radio(
+        "Alcance de la Gestión:", 
+        ["🏢 Nivel Global (Todo el CEMIC)", "🔬 Nivel Servicio (Focalizado)"],
+        horizontal=True
+    )
+
+    # Variables por defecto (Globales)
+    base_calculo = total_perdido
+    texto_base = "la pérdida total anual"
     
-    c_sim1, c_sim2 = st.columns([1, 3])
-    with c_sim1:
-        st.metric(f"💰 Recupero ({meta_recupero}%)", f"$ {dinero_recuperable:,.0f}")
-    with c_sim2:
-        # Barra de progreso visual
-        st.progress(meta_recupero / 100)
-        st.caption(f"Ingreso Adicional Estimado: **$ {dinero_recuperable:,.0f}**")
+    # 2. Lógica Focalizada
+    if tipo_simulacion == "🔬 Nivel Servicio (Focalizado)":
+        lista_servicios = df_perdidas.groupby('SERVICIO')['DINERO_PERDIDO'].sum().sort_values(ascending=False).index.tolist()
+        servicio_sel = st.selectbox("Seleccionar Servicio a intervenir:", lista_servicios)
+        
+        # Recalculamos la base solo para ese servicio
+        df_serv = df_perdidas[df_perdidas['SERVICIO'] == servicio_sel]
+        base_calculo = df_serv['DINERO_PERDIDO'].sum()
+        turnos_serv = df_serv['TURNOS_PERDIDOS'].sum()
+        texto_base = f"la pérdida de {servicio_sel}"
+        
+        # Mostramos el dato del servicio seleccionado
+        st.caption(f"📉 {servicio_sel} representa una fuga de **${base_calculo/1e6:,.1f}M** ({turnos_serv:,.0f} turnos).")
+
+    # 3. Slider de Gestión
+    col_sim_A, col_sim_B = st.columns([2, 1])
+    
+    with col_sim_A:
+        meta_recupero = st.slider(f"¿Qué % de {texto_base} podemos recuperar?", 0, 100, 50, key="slider_meta")
+        
+    with col_sim_B:
+        dinero_recuperable = base_calculo * (meta_recupero / 100)
+        
+        # Tarjeta de Resultado Simulado
+        st.metric(
+            label="💰 Ingreso Extra Estimado", 
+            value=f"$ {dinero_recuperable:,.0f}",
+            delta=f"Recuperando el {meta_recupero}%"
+        )
+    
+    # Barra de progreso visual para dar contexto
+    st.progress(meta_recupero / 100)
+    
+    if tipo_simulacion == "🔬 Nivel Servicio (Focalizado)":
+        # Cálculo de impacto sobre el total
+        impacto_total = (dinero_recuperable / total_perdido) * 100
+        st.info(f"💡 Arreglando solo **{servicio_sel}**, resolvemos el **{impacto_total:.1f}%** del problema total del hospital.")
+    else:
+        st.caption(f"Gestionando el {meta_recupero}% de las faltas a nivel global, ingresamos **${dinero_recuperable:,.0f}** extra.")
 
     st.markdown("---")
 
