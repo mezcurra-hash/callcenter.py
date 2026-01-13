@@ -140,36 +140,6 @@ try:
     kpi4.metric("📅 Proy. Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Tendencia 12 meses", delta_color="inverse")
 
     st.markdown("---")
-
-    st.subheader("🌉 Conciliación: Del Potencial a la Realidad")
-    
-    fig_waterfall = go.Figure(go.Waterfall(
-        name = "Conciliación", 
-        orientation = "v",
-        measure = ["absolute", "relative", "total"],
-        x = ["Facturación Potencial", "Pérdida por Ausentismo", "Facturación Base Real"],
-        textposition = "outside",
-        # Texto formateado en Millones (ej: $188M)
-        text = [f"${total_potencial/1e6:,.0f}M", f"-${total_perdido/1e6:,.0f}M", f"${total_facturado/1e6:,.0f}M"],
-        y = [total_potencial, -total_perdido, 0], # El 0 final lo calcula Plotly solo
-        
-        connector = {"line":{"color":"rgba(63, 63, 63, 0.5)"}},
-        decreasing = {"marker":{"color":"#FF5252"}}, # Rojo para la caída
-        increasing = {"marker":{"color":"#4CAF50"}}, # Verde para el inicio
-        totals = {"marker":{"color":"#2196F3"}}       # Azul para el resultado final
-    ))
-
-    fig_waterfall.update_layout(
-        title = "Impacto Neto del Ausentismo en los Ingresos",
-        showlegend = False,
-        waterfallgap = 0.3,
-        height = 450,
-        font=dict(size=14)
-    )
-    
-    st.plotly_chart(fig_waterfall, use_container_width=True)
-    st.markdown("---")
-
     # B. SIMULADOR Y RECUPERO
     st.info("🎯 **Estrategia de Recupero:** Simulador de impacto financiero por gestión.")
     
