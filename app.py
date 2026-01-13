@@ -140,50 +140,6 @@ try:
     kpi4.metric("📅 Proy. Anual Pérdida", f"$ {proyeccion_anual:,.0f}", "Tendencia 12 meses", delta_color="inverse")
 
     st.markdown("---")
-    col_bridge_1, col_bridge_2 = st.columns([2, 1])
-    
-    with col_bridge_1:
-        st.subheader("🌉 Composición de la Facturación Potencial")
-        st.caption("De todo lo que podríamos haber facturado, ¿cuánto perdimos?")
-        
-        # Datos para el anillo
-        labels = ['Facturación Real', 'Pérdida por Ausentismo']
-        values = [total_facturado, total_perdido]
-        colors = ['#4CAF50', '#FF5252'] # Verde y Rojo
-        
-        fig_donut = go.Figure(data=[go.Pie(
-            labels=labels, 
-            values=values, 
-            hole=.6, # El agujero del medio
-            marker=dict(colors=colors),
-            textinfo='label+percent', # Muestra nombre y %
-            textfont_size=14,
-            hoverinfo='label+value+percent'
-        )])
-
-        fig_donut.update_layout(
-            showlegend=False,
-            height=350,
-            margin=dict(t=0, b=0, l=0, r=0),
-            # Ponemos el % de fuga en el medio del anillo
-            annotations=[dict(text=f"Fuga<br>{pct_fuga:.1f}%", x=0.5, y=0.5, font_size=20, showarrow=False)]
-        )
-        
-        st.plotly_chart(fig_donut, use_container_width=True)
-
-    with col_bridge_2:
-        # Una explicación escrita simple al lado para reforzar
-        st.info("💡 **Análisis Rápido**")
-        st.markdown(f"""
-        De un potencial de **${total_potencial/1e6:,.0f} Millones**:
-        
-        * ✅ **${total_facturado/1e6:,.0f}M** se gestionaron correctamente.
-        * ❌ **${total_perdido/1e6:,.0f}M** se perdieron por ausencias.
-        
-        Si no hacemos nada, este **{pct_fuga:.1f}%** de pérdida se mantendrá constante.
-        """)
-
-    st.markdown("---")
 
     # ... (Aquí sigue la sección B: st.info("🎯 Estrategia de Recupero..."))
     # B. SIMULADOR Y RECUPERO
