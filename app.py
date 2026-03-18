@@ -378,64 +378,63 @@ try:
     d_perd = (m['total_perd'] - m_ant['total_perd']) if m_ant else None
 
     c1.markdown(kpi_card(
-        "💰 Facturación Base",
-        m['total_fact'],
+        "💰 Facturación Base", m['total_fact'],
         delta=d_fact,
         delta_label=f"{'+' if d_fact and d_fact>=0 else ''}{fmt_millones(d_fact) if d_fact else ''} vs {fmt_fecha(periodo_ant) if periodo_ant else ''}",
-        help_text=f"{m['turnos_real']:,.0f} turnos × valor por servicio",
         variant="success"
     ), unsafe_allow_html=True)
+    c1.caption(f"{m['turnos_real']:,.0f} turnos × valor por servicio")
 
     c2.markdown(kpi_card(
-        "💸 Dinero No Ingresado",
-        m['total_perd'],
+        "💸 Dinero No Ingresado", m['total_perd'],
         delta=d_perd,
         delta_label=f"{'+' if d_perd and d_perd>=0 else ''}{fmt_millones(d_perd) if d_perd else ''} vs {fmt_fecha(periodo_ant) if periodo_ant else ''}",
-        help_text=f"{m['turnos_perd']:,.0f} turnos perdidos · {m['pct_fuga']:.1f}% del potencial",
         variant="danger"
     ), unsafe_allow_html=True)
+    c2.caption(f"{m['turnos_perd']:,.0f} turnos perdidos · {m['pct_fuga']:.1f}% del potencial")
 
     c3.markdown(kpi_card(
-        "🚀 Potencial Total",
-        m['total_pot'],
-        help_text="Escenario ideal sin ausentismo",
+        "🚀 Potencial Total", m['total_pot'],
         variant="default"
     ), unsafe_allow_html=True)
+    c3.caption("Escenario ideal sin ausentismo")
 
     c4.markdown(kpi_card(
-        "📅 Proyección Anual Pérdida",
-        m['total_perd'] * 12,
-        help_text="Si el ausentismo de este mes se mantiene",
+        "📅 Proyección Anual Pérdida", m['total_perd'] * 12,
         variant="warning"
     ), unsafe_allow_html=True)
+    c4.caption("Si el ausentismo de este mes se mantiene 12 meses")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ============================================================
-    # GRÁFICO WATERFALL — El más claro para una contadora
+    # GRÁFICO WATERFALL
     # ============================================================
     st.markdown('<div class="sec-title">📊 Composición Financiera del Período</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="sec-sub">De la facturación potencial total, ¿cuánto se cobró y cuánto se perdió?</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-sub">Del potencial total disponible, ¿cuánto se perdió y cuánto se facturó?</div>', unsafe_allow_html=True)
 
+    # Lógica: Potencial → resta Pérdida → llega a Facturación Real
     fig_wf = go.Figure(go.Waterfall(
         name="",
         orientation="v",
         measure=["absolute", "relative", "total"],
-        x=["Facturación\nRealizada", "Pérdida por\nAusentismo", "Potencial\nTotal"],
-        y=[m['total_fact'], -m['total_perd'], 0],
-        text=[fmt_millones(m['total_fact']),
+        x=["Potencial\nTotal", "Pérdida por\nAusentismo", "Facturación\nRealizada"],
+        y=[m['total_pot'], -m['total_perd'], 0],
+        text=[fmt_millones(m['total_pot']),
               f"- {fmt_millones(m['total_perd'])}",
-              fmt_millones(m['total_pot'])],
+              fmt_millones(m['total_fact'])],
         textposition="outside",
         connector=dict(line=dict(color=BORDER, width=1, dash="dot")),
-        increasing=dict(marker=dict(color=ACCENT4)),
-        decreasing=dict(marker=dict(color=ACCENT2)),
-        totals=dict(marker=dict(color=BLUE_LIGHT)),
+        increasing=dict(marker=dict(color=BLUE_LIGHT)),
+        decreasing=dict(marker=dict(color=ACCENT2, line=dict(color=ACCENT2, width=1))),
+        totals=dict(marker=dict(color=ACCENT4, line=dict(color=ACCENT4, width=1))),
         textfont=dict(size=13, color="#CDD6F4"),
     ))
     apply_plotly_defaults(fig_wf)
-    fig_wf.update_layout(height=320, showlegend=False,
-                         yaxis=dict(tickformat="$,.0f"))
+    fig_wf.update_layout(
+        height=340, showlegend=False,
+        yaxis=dict(tickformat="$.3s"),
+    )
     st.plotly_chart(fig_wf, use_container_width=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -494,8 +493,8 @@ try:
 
         with tab_todos:
             df_tabla = grp.copy()
-            df_tabla['% del total']    = (df_tabla['DINERO_PERDIDO'] / m['total_perd'] * 100).round(1)
-            df_tabla['Pérdida ($)']    = df_tabla['DINERO_PERDIDO'].apply(lambda x: f"$ {x:,.0f}")
+            df_tabla['% del total']     = (df_tabla['DINERO_PERDIDO'] / m['total_perd'] * 100).round(1).fillna(0)
+            df_tabla['Pérdida ($)']     = df_tabla['DINERO_PERDIDO'].apply(lambda x: f"$ {x:,.0f}")
             df_tabla['Turnos Perdidos'] = df_tabla['TURNOS_PERDIDOS'].apply(lambda x: f"{x:,.0f}")
             st.dataframe(
                 df_tabla[['SERVICIO','Pérdida ($)','Turnos Perdidos','% del total']]
