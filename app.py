@@ -566,8 +566,8 @@ try:
     anual_rec = dinero_rec * 12
     col_m, col_a = st.columns(2)
     col_m.markdown(kpi_card("Impacto Mensual", dinero_rec, variant="success"), unsafe_allow_html=True)
-    col_a.markdown(kpi_card("Proyección Anual del Recupero", anual_rec, variant="success",
-                             help_text="Si se mantiene la mejora los 12 meses"), unsafe_allow_html=True)
+    col_a.markdown(kpi_card("Proyección Anual del Recupero", anual_rec, variant="success"), unsafe_allow_html=True)
+    col_a.caption("Si se mantiene la mejora los 12 meses")
 
     if "Por servicio" in tipo_sim and not grp.empty:
         impacto = (dinero_rec / m['total_perd'] * 100) if m['total_perd'] > 0 else 0
