@@ -243,6 +243,15 @@ def cargar_datos():
     df_au[col_target] = pd.to_numeric(df_au[col_target], errors='coerce').fillna(0)
     df_au['_COL_TARGET'] = df_au[col_target]
 
+    # ── Limpieza global de NaN ──────────────────────────────
+    # Columnas numéricas: rellenar con 0
+    for df in [df_of, df_au, df_val]:
+        num_cols = df.select_dtypes(include='number').columns
+        df[num_cols] = df[num_cols].fillna(0)
+        # Columnas de texto: rellenar con string vacío
+        str_cols = df.select_dtypes(include='object').columns
+        df[str_cols] = df[str_cols].fillna('')
+
     return df_of, df_au, df_val
 
 # ============================================================
@@ -496,9 +505,9 @@ try:
             df_tabla['% del total']     = (df_tabla['DINERO_PERDIDO'] / m['total_perd'] * 100).round(1).fillna(0)
             df_tabla['Pérdida ($)']     = df_tabla['DINERO_PERDIDO'].apply(lambda x: f"$ {x:,.0f}")
             df_tabla['Turnos Perdidos'] = df_tabla['TURNOS_PERDIDOS'].apply(lambda x: f"{x:,.0f}")
+            df_show = df_tabla[['SERVICIO','Pérdida ($)','Turnos Perdidos','% del total']].copy()
             st.dataframe(
-                df_tabla[['SERVICIO','Pérdida ($)','Turnos Perdidos','% del total']]
-                    .style.background_gradient(cmap='Reds', subset=['% del total']),
+                df_show.style.bar(subset=['% del total'], color=ACCENT2, vmin=0, vmax=100),
                 use_container_width=True, hide_index=True
             )
 
