@@ -403,7 +403,7 @@ try:
         c3.caption(f"Tasa de ocupación promedio: {m['tasa_ocup_prom']:.1f}%")
 
         c4.markdown(kpi_card(
-            "📊 Pérdida por turnos no tomados", m['total_perd_inasist'], variant="danger"
+            "📊 Brecha Oferta — Demanda Real", m['total_perd_inasist'], variant="danger"
         ), unsafe_allow_html=True)
         c4.caption("Diferencia entre turnos ofertados y turnos efectivamente dados")
     else:
@@ -654,7 +654,8 @@ try:
         apply_plotly_defaults(fig_evo, "Facturación y pérdida mensual")
         fig_evo.update_layout(barmode='overlay', height=360,
             yaxis2=dict(overlaying='y', side='right', showgrid=False,
-                        title='Tasa Ocup %', color=ACCENT3, ticksuffix='%'))
+                        title='Tasa Ocup %', color=ACCENT3,
+                        ticksuffix='%', range=[0, 110]))
         st.plotly_chart(fig_evo, use_container_width=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
