@@ -403,9 +403,9 @@ try:
         c3.caption(f"Tasa de ocupación promedio: {m['tasa_ocup_prom']:.1f}%")
 
         c4.markdown(kpi_card(
-            "👤 Pérdida por Inasistencia Paciente", m['total_perd_inasist'], variant="danger"
+            "📊 Brecha Oferta — Demanda Real", m['total_perd_inasist'], variant="danger"
         ), unsafe_allow_html=True)
-        c4.caption("Turnos disponibles no utilizados por el paciente")
+        c4.caption("Diferencia entre turnos ofertados y turnos efectivamente dados")
     else:
         c3.markdown(kpi_card("🚀 Potencial Total", m['total_pot'], variant="default"), unsafe_allow_html=True)
         c3.caption("Escenario ideal sin ausentismo")
@@ -429,7 +429,7 @@ try:
 
     if m['tiene_dato_real']:
         st.markdown(f'<div class="sec-sub">Del potencial total, desglose de pérdidas por causa y facturación real · <span class="badge">✅ Dato real</span></div>', unsafe_allow_html=True)
-        wf_x = ["Potencial\nTotal","Ausentismo\nProfesional","Inasistencia\nPaciente","Facturación\nReal"]
+        wf_x = ["Potencial\nTotal","Ausentismo\nProfesional","Brecha\nOferta-Demanda","Facturación\nReal"]
         wf_y = [m['total_pot'], -m['total_perd'], -m['total_perd_inasist'], 0]
         wf_t = [fmt_millones(m['total_pot']), f"- {fmt_millones(m['total_perd'])}",
                 f"- {fmt_millones(m['total_perd_inasist'])}", fmt_millones(m['total_fact_real'])]
@@ -473,9 +473,10 @@ try:
             nombres_baja = ", ".join(baja['SERVICIO'].tolist())
             st.markdown(f"""
             <div class="insight-box insight-box-blue">
-                👤 <b>Inasistencia del paciente:</b> Los servicios con menor ocupación son
-                <b>{nombres_baja}</b> — representan <b>{fmt_millones(perd_baja)}</b> de pérdida
-                por turnos disponibles no utilizados por el paciente.
+                📊 <b>Brecha oferta-demanda:</b> Los servicios con menor ocupación son
+                <b>{nombres_baja}</b> — representan <b>{fmt_millones(perd_baja)}</b> de diferencia
+                entre turnos ofertados y dados. Puede deberse a turnos no reservados,
+                cancelaciones del paciente u oferta que supera la demanda.
             </div>
             """, unsafe_allow_html=True)
         if not alta.empty:
@@ -497,7 +498,7 @@ try:
                 "Turnos dados: %{customdata[0]:,.0f}<br>"
                 "Turnos ofertados: %{customdata[1]:,.0f}<br>"
                 "Facturación real: $%{customdata[2]:,.0f}<br>"
-                "Pérdida inasistencia: $%{customdata[3]:,.0f}<extra></extra>"
+                "Brecha oferta-demanda: $%{customdata[3]:,.0f}<extra></extra>"
             )
         ))
         fig_ocup.add_vline(x=100, line_width=1, line_dash="dash", line_color=TEXT_MUTED,
