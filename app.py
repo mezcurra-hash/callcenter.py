@@ -403,7 +403,7 @@ try:
         c3.caption(f"Tasa de ocupación promedio: {m['tasa_ocup_prom']:.1f}%")
 
         c4.markdown(kpi_card(
-            "📊 Brecha Oferta — Demanda Real", m['total_perd_inasist'], variant="danger"
+            "📊 Perdida por turnos no tomados", m['total_perd_inasist'], variant="danger"
         ), unsafe_allow_html=True)
         c4.caption("Diferencia entre turnos ofertados y turnos efectivamente dados")
     else:
